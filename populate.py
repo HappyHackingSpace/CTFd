@@ -18,6 +18,8 @@ from CTFd.models import (
     Fails,
     Solves,
     Tracking,
+    Brackets,
+    Solutions,
 )
 from faker import Faker
 
@@ -34,6 +36,9 @@ parser.add_argument(
 parser.add_argument(
     "--awards", help="Amount of awards to generate", default=5, type=int
 )
+parser.add_argument(
+    "--brackets", help="Amount of brackets to generate", default=5, type=int
+)
 
 args = parser.parse_args()
 
@@ -44,6 +49,7 @@ USER_AMOUNT = args.users
 TEAM_AMOUNT = args.teams if args.mode == "teams" else 0
 CHAL_AMOUNT = args.challenges
 AWARDS_AMOUNT = args.awards
+BRACKETS_AMOUNT = args.brackets
 
 categories = [
     "Exploitation",
@@ -144,6 +150,19 @@ if __name__ == "__main__":
             db.session.add(f)
             db.session.commit()
 
+        # Generating Solutions
+        print("GENERATING SOLUTIONS")
+        solutions = []
+        for x in range(CHAL_AMOUNT):
+            solution = Solutions(
+                content=" ".join([gen_sentence() for _ in range(5)]),
+                state="visible",
+                challenge_id=x + 1,
+            )
+            db.session.add(solution)
+            solutions.append(solution)
+        db.session.commit()
+
         # Generating Files
         print("GENERATING FILES")
         AMT_CHALS_WITH_FILES = int(CHAL_AMOUNT * (3.0 / 4.0))
@@ -157,6 +176,23 @@ if __name__ == "__main__":
             db.session.add(chal_file)
 
         db.session.commit()
+
+        # Generating Brackets
+        print("GENERATING BRACKETS")
+        for x in range(BRACKETS_AMOUNT):
+            bracket = Brackets(
+                name=gen_team_name(), description=gen_sentence(), type="teams"
+            )
+            db.session.add(bracket)
+        for x in range(BRACKETS_AMOUNT):
+            bracket = Brackets(
+                name=gen_team_name(), description=gen_sentence(), type="users"
+            )
+            db.session.add(bracket)
+
+        db.session.commit()
+        TEAM_BRACKETS = [b.id for b in Brackets.query.filter_by(type="teams").all()]
+        USER_BRACKETS = [b.id for b in Brackets.query.filter_by(type="users").all()]
 
         # Generating Teams
         print("GENERATING TEAMS")
@@ -176,6 +212,8 @@ if __name__ == "__main__":
                         oauth_id = random.randint(1, 1000)
                     used_oauth_ids.append(oauth_id)
                     team.oauth_id = oauth_id
+                if random_chance():
+                    team.bracket_id = random.choice(TEAM_BRACKETS)
                 db.session.add(team)
                 count += 1
 
@@ -201,6 +239,8 @@ if __name__ == "__main__":
                             oauth_id = random.randint(1, 1000)
                         used_oauth_ids.append(oauth_id)
                         user.oauth_id = oauth_id
+                    if random_chance():
+                        user.bracket_id = random.choice(USER_BRACKETS)
                     if mode == "teams":
                         user.team_id = random.randint(1, TEAM_AMOUNT)
                     db.session.add(user)

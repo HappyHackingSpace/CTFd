@@ -1,13 +1,15 @@
+import math
+from datetime import datetime, timedelta
 from typing import List  # noqa: I001
 
-from flask import abort, render_template, request, url_for
+from flask import abort, render_template, request, session, url_for
 from flask_restx import Namespace, Resource
 from sqlalchemy.sql import and_
 
 from CTFd.api.v1.helpers.request import validate_args
 from CTFd.api.v1.helpers.schemas import sqlalchemy_to_pydantic
 from CTFd.api.v1.schemas import APIDetailedSuccessResponse, APIListSuccessResponse
-from CTFd.cache import clear_challenges, clear_standings
+from CTFd.cache import clear_challenges, clear_ratings, clear_standings
 from CTFd.constants import RawEnum
 from CTFd.exceptions.challenges import (
     ChallengeCreateException,
@@ -16,16 +18,29 @@ from CTFd.exceptions.challenges import (
 from CTFd.models import ChallengeFiles as ChallengeFilesModel
 from CTFd.models import Challenges
 from CTFd.models import ChallengeTopics as ChallengeTopicsModel
-from CTFd.models import Fails, Flags, Hints, HintUnlocks, Solves, Submissions, Tags, db
+from CTFd.models import (
+    Fails,
+    Flags,
+    Hints,
+    HintUnlocks,
+    Ratings,
+    Solves,
+    Submissions,
+    Tags,
+    Tracking,
+    db,
+)
 from CTFd.plugins.challenges import CHALLENGE_CLASSES, get_chal_class
 from CTFd.schemas.challenges import ChallengeSchema
 from CTFd.schemas.flags import FlagSchema
 from CTFd.schemas.hints import HintSchema
+from CTFd.schemas.ratings import RatingSchema
 from CTFd.schemas.tags import TagSchema
 from CTFd.utils import config, get_config
 from CTFd.utils import user as current_user
 from CTFd.utils.challenges import (
     get_all_challenges,
+    get_rating_average_for_challenge_id,
     get_solve_counts_for_challenges,
     get_solve_ids_for_user_id,
     get_solves_for_challenge_id,
@@ -35,9 +50,10 @@ from CTFd.utils.config.visibility import (
     challenges_visible,
     scores_visible,
 )
-from CTFd.utils.dates import ctf_ended, ctf_paused, ctftime
+from CTFd.utils.dates import ctf_ended, ctf_paused, ctftime, isoformat
 from CTFd.utils.decorators import (
     admins_only,
+    authed_only,
     during_ctf_time_only,
     require_verified_emails,
 )
@@ -55,6 +71,7 @@ from CTFd.utils.user import (
     get_current_team_attrs,
     get_current_user,
     get_current_user_attrs,
+    get_ip,
     is_admin,
 )
 
@@ -345,8 +362,10 @@ class Challenge(Resource):
                                 "type": "hidden",
                                 "name": "???",
                                 "value": 0,
+                                "logic": None,
                                 "solves": None,
                                 "solved_by_me": False,
+                                "solution_id": None,
                                 "category": "???",
                                 "tags": [],
                                 "template": "",
@@ -396,10 +415,15 @@ class Challenge(Resource):
         for hint in Hints.query.filter_by(challenge_id=chal.id).all():
             if hint.id in unlocked_hints or ctf_ended():
                 hints.append(
-                    {"id": hint.id, "cost": hint.cost, "content": hint.content}
+                    {
+                        "id": hint.id,
+                        "cost": hint.cost,
+                        "title": hint.title,
+                        "content": hint.content,
+                    }
                 )
             else:
-                hints.append({"id": hint.id, "cost": hint.cost})
+                hints.append({"id": hint.id, "cost": hint.cost, "title": hint.title})
 
         response = chal_class.read(challenge=chal)
 
@@ -424,11 +448,30 @@ class Challenge(Resource):
 
         if authed():
             # Get current attempts for the user
-            attempts = Submissions.query.filter_by(
+            attempts_query = Submissions.query.filter_by(
                 account_id=user.account_id, challenge_id=challenge_id
-            ).count()
+            )
+            max_attempts_behavior = get_config("max_attempts_behavior", "lockout")
+            if max_attempts_behavior == "timeout":
+                max_attempts_timeout = int(get_config("max_attempts_timeout", 300))
+                timeout_delta = datetime.utcnow() - timedelta(
+                    seconds=max_attempts_timeout
+                )
+                attempts_query = attempts_query.filter(
+                    Submissions.date >= timeout_delta
+                )
+            attempts = attempts_query.count()
+            rating = Ratings.query.filter_by(
+                user_id=user.id, challenge_id=challenge_id
+            ).first()
+            if rating:
+                rating = {
+                    "value": rating.value,
+                    "review": rating.review,
+                }
         else:
             attempts = 0
+            rating = None
 
         response["solves"] = solve_count
         response["solved_by_me"] = solved_by_user
@@ -437,6 +480,31 @@ class Challenge(Resource):
         response["tags"] = tags
         response["hints"] = hints
 
+        # If we didn't disable ratings then we should allow the user to see their own challenge rating
+        if get_config("challenge_ratings", default="public") != "disabled":
+            response["rating"] = rating
+        else:
+            response["rating"] = None
+            rating = None
+
+        # If ratings are public then we show the aggregated ratings
+        if get_config("challenge_ratings", default="public") == "public":
+            # Get rating information for this challenge
+            rating_info = get_rating_average_for_challenge_id(challenge_id)
+            response["ratings"] = {
+                "up": rating_info.up,
+                "down": rating_info.down,
+                "count": rating_info.count,
+            }
+        else:
+            rating_info = None
+            response["ratings"] = None
+
+        solution_id = None
+        if chal.solution_id and chal.solution.state == "visible":
+            solution_id = chal.solution.id
+        response["solution_id"] = solution_id
+
         response["view"] = render_template(
             chal_class.templates["view"].lstrip("/"),
             solves=solve_count,
@@ -444,12 +512,31 @@ class Challenge(Resource):
             files=files,
             tags=tags,
             hints=[Hints(**h) for h in hints],
+            rating=rating,
+            ratings=rating_info,
             max_attempts=chal.max_attempts,
             attempts=attempts,
             challenge=chal,
         )
 
-        db.session.close()
+        if (
+            authed() is True
+            and is_admin() is False
+            and Tracking.query.filter_by(
+                type="challenges.open", user_id=session["id"], target=challenge_id
+            ).first()
+            is None
+        ):
+            track = Tracking(
+                ip=get_ip(),
+                user_id=session["id"],
+                type="challenges.open",
+                target=challenge_id,
+            )
+            db.session.add(track)
+            db.session.commit()
+            db.session.close()
+
         return {"success": True, "data": response}
 
     @admins_only
@@ -524,12 +611,19 @@ class ChallengeAttempt(Resource):
             if preview:
                 challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
                 chal_class = get_chal_class(challenge.type)
-                status, message = chal_class.attempt(challenge, request)
+                response = chal_class.attempt(challenge, request)
+                # TODO: CTFd 4.0 We should remove the tuple strategy for Challenge plugins in favor of ChallengeResponse
+                if isinstance(response, tuple):
+                    status = "correct" if response[0] else "incorrect"
+                    message = response[1]
+                else:
+                    status = response.status
+                    message = response.message
 
                 return {
                     "success": True,
                     "data": {
-                        "status": "correct" if status else "incorrect",
+                        "status": status,
                         "message": message,
                     },
                 }
@@ -552,10 +646,6 @@ class ChallengeAttempt(Resource):
         # TODO: Convert this into a re-useable decorator
         if config.is_teams_mode() and team is None:
             abort(403)
-
-        fails = Fails.query.filter_by(
-            account_id=user.account_id, challenge_id=challenge_id
-        ).count()
 
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
 
@@ -617,25 +707,66 @@ class ChallengeAttempt(Resource):
         solves = Solves.query.filter_by(
             account_id=user.account_id, challenge_id=challenge_id
         ).first()
+        # We default fails to 0 as it's not needed unless we are working with max attempts
+        fails = 0
 
         # Challenge not solved yet
         if not solves:
             # Hit max attempts
             max_tries = challenge.max_attempts
-            if max_tries and fails >= max_tries > 0:
-                return (
-                    {
-                        "success": True,
-                        "data": {
-                            "status": "incorrect",
-                            "message": "You have 0 tries remaining",
-                        },
-                    },
-                    403,
+            if max_tries and max_tries > 0:
+                max_attempts_behavior = get_config("max_attempts_behavior", "lockout")
+                fails_query = Fails.query.filter_by(
+                    account_id=user.account_id, challenge_id=challenge_id
                 )
+                if max_attempts_behavior == "timeout":  # Use timeout behavior
+                    max_attempts_timeout = int(get_config("max_attempts_timeout", 300))
+                    timeout_delta = datetime.utcnow() - timedelta(
+                        seconds=max_attempts_timeout
+                    )
+                    fails = fails_query.filter(Fails.date >= timeout_delta).count()
+                    # Calculate actual time remaining for the most recent fail
+                    response = f"Not accepted. Try again in {math.ceil(max_attempts_timeout / 60)} minutes"
+                    if fails > 0:
+                        most_recent_fail = (
+                            fails_query.filter(Fails.date >= timeout_delta)
+                            .order_by(Fails.date.asc())
+                            .first()
+                        )
+                        if most_recent_fail:
+                            time_since_fail = (
+                                datetime.utcnow() - most_recent_fail.date
+                            ).total_seconds()
+                            remaining_seconds = max_attempts_timeout - time_since_fail
+                            remaining_minutes = math.ceil(remaining_seconds / 60)
+                            response = f"Not accepted. Try again in {remaining_minutes} minutes"
+                else:  # Use lockout behavior
+                    fails = fails_query.count()
+                    response = "Not accepted. You have 0 tries remaining"
 
-            status, message = chal_class.attempt(challenge, request)
-            if status:  # The challenge plugin says the input is right
+                if fails >= max_tries:
+                    return (
+                        {
+                            "success": True,
+                            "data": {
+                                "status": "ratelimited",
+                                "message": response,
+                            },
+                        },
+                        403,
+                    )
+
+            response = chal_class.attempt(challenge, request)
+            # TODO: CTFd 4.0 We should remove the tuple strategy for Challenge plugins in favor of ChallengeResponse
+            if isinstance(response, tuple):
+                status = response[0]
+                message = response[1]
+            else:
+                status = response.status
+                message = response.message
+
+            if status == "correct" or status is True:
+                # The challenge plugin says the input is right
                 if ctftime() or current_user.is_admin():
                     chal_class.solve(
                         user=user, team=team, challenge=challenge, request=request
@@ -655,7 +786,29 @@ class ChallengeAttempt(Resource):
                     "success": True,
                     "data": {"status": "correct", "message": message},
                 }
-            else:  # The challenge plugin says the input is wrong
+            elif status == "partial":
+                # The challenge plugin says that the input is a partial solve
+                if ctftime() or current_user.is_admin():
+                    chal_class.partial(
+                        user=user, team=team, challenge=challenge, request=request
+                    )
+                    clear_standings()
+                    clear_challenges()
+
+                log(
+                    "submissions",
+                    "[{date}] {name} submitted {submission} on {challenge_id} with kpm {kpm} [PARTIAL]",
+                    name=user.name,
+                    submission=request_data.get("submission", "").encode("utf-8"),
+                    challenge_id=challenge_id,
+                    kpm=kpm,
+                )
+                return {
+                    "success": True,
+                    "data": {"status": "partial", "message": message},
+                }
+            elif status == "incorrect" or status is False:
+                # The challenge plugin says the input is wrong
                 if ctftime() or current_user.is_admin():
                     chal_class.fail(
                         user=user, team=team, challenge=challenge, request=request
@@ -679,13 +832,46 @@ class ChallengeAttempt(Resource):
                     # Add a punctuation mark if there isn't one
                     if message[-1] not in "!().;?[]{}":
                         message = message + "."
+                    message = "{} You have {} {} remaining.".format(
+                        message, attempts_left, tries_str
+                    )
+                    if attempts_left == 0:
+                        max_attempts_behavior = get_config(
+                            "max_attempts_behavior", "lockout"
+                        )
+                        if max_attempts_behavior == "timeout":
+                            max_attempts_timeout = int(
+                                get_config("max_attempts_timeout", 300)
+                            )
+                            # Calculate actual time remaining based on the most recent fail
+                            timeout_delta = datetime.utcnow() - timedelta(
+                                seconds=max_attempts_timeout
+                            )
+                            most_recent_fail = (
+                                Fails.query.filter_by(
+                                    account_id=user.account_id,
+                                    challenge_id=challenge_id,
+                                )
+                                .filter(Fails.date >= timeout_delta)
+                                .order_by(Fails.date.asc())
+                                .first()
+                            )
+                            if most_recent_fail:
+                                time_since_fail = (
+                                    datetime.utcnow() - most_recent_fail.date
+                                ).total_seconds()
+                                remaining_seconds = (
+                                    max_attempts_timeout - time_since_fail
+                                )
+                                remaining_minutes = math.ceil(remaining_seconds / 60)
+                                message += f" Try again in {remaining_minutes} minutes"
+                            else:
+                                message += f" Try again in {math.ceil(max_attempts_timeout / 60)} minutes"
                     return {
                         "success": True,
                         "data": {
                             "status": "incorrect",
-                            "message": "{} You have {} {} remaining.".format(
-                                message, attempts_left, tries_str
-                            ),
+                            "message": message,
                         },
                     }
                 else:
@@ -704,11 +890,19 @@ class ChallengeAttempt(Resource):
                 challenge_id=challenge_id,
                 kpm=kpm,
             )
+            response = chal_class.attempt(challenge, request)
+            # TODO: CTFd 4.0 We should remove the tuple strategy for Challenge plugins in favor of ChallengeResponse
+            if isinstance(response, tuple):
+                status = response[0]
+                message = response[1]
+            else:
+                status = response.status
+                message = response.message
             return {
                 "success": True,
                 "data": {
                     "status": "already_solved",
-                    "message": "You already solved this",
+                    "message": f"{message} but you already solved this",
                 },
             }
 
@@ -753,7 +947,14 @@ class ChallengeFiles(Resource):
         ).all()
 
         for f in challenge_files:
-            response.append({"id": f.id, "type": f.type, "location": f.location})
+            response.append(
+                {
+                    "id": f.id,
+                    "type": f.type,
+                    "location": f.location,
+                    "sha1sum": f.sha1sum,
+                }
+            )
         return {"success": True, "data": response}
 
 
@@ -826,3 +1027,145 @@ class ChallengeRequirements(Resource):
     def get(self, challenge_id):
         challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
         return {"success": True, "data": challenge.requirements}
+
+
+@challenges_namespace.route("/<challenge_id>/ratings")
+class ChallengeRatings(Resource):
+    @admins_only
+    def get(self, challenge_id):
+        """Get paginated ratings for a challenge"""
+        # Get pagination parameters
+        page = int(request.args.get("page", 1))
+
+        # Get paginated ratings with user information
+        ratings_query = Ratings.query.filter(
+            Ratings.challenge_id == challenge_id
+        ).order_by(Ratings.id.desc())
+
+        paginated_ratings = ratings_query.paginate(
+            page=page, max_per_page=50, error_out=False
+        )
+
+        # Use schema to serialize the ratings data
+        schema = RatingSchema(view="admin", many=True)
+        ratings_data = schema.dump(paginated_ratings.items)
+
+        if ratings_data.errors:
+            return {"success": False, "errors": ratings_data.errors}, 400
+
+        # Use cached utility function to get rating statistics for meta
+        rating_info = get_rating_average_for_challenge_id(challenge_id)
+
+        return {
+            "meta": {
+                "pagination": {
+                    "page": paginated_ratings.page,
+                    "next": paginated_ratings.next_num,
+                    "prev": paginated_ratings.prev_num,
+                    "pages": paginated_ratings.pages,
+                    "per_page": paginated_ratings.per_page,
+                    "total": paginated_ratings.total,
+                },
+                "summary": {
+                    "up": rating_info.up,
+                    "down": rating_info.down,
+                    "count": rating_info.count,
+                },
+            },
+            "success": True,
+            "data": ratings_data.data,
+        }
+
+    @check_challenge_visibility
+    @during_ctf_time_only
+    @authed_only
+    @require_verified_emails
+    def put(self, challenge_id):
+        """Create or update a rating for a challenge"""
+        # If challenge ratings are disabled we should not receive any ratings information
+        # If they are public or private we still want to collect the data
+        if get_config("challenge_ratings") == "disabled":
+            abort(403)
+
+        user = get_current_user()
+        challenge = Challenges.query.filter_by(id=challenge_id).first_or_404()
+
+        # Check if challenge is visible to the user
+        if challenge.state == "hidden" and not is_admin():
+            abort(404)
+
+        # Check if user/team has solved this challenge (only allow rating if solved)
+        if not is_admin():
+            user_solves = get_solve_ids_for_user_id(user_id=user.id)
+            if int(challenge_id) not in user_solves:
+                return {
+                    "success": False,
+                    "errors": {"": ["You must solve this challenge before rating it"]},
+                }, 403
+
+        data = request.get_json()
+        if not data or "value" not in data:
+            return {
+                "success": False,
+                "errors": {"value": ["Rating value is required"]},
+            }, 400
+
+        try:
+            rating_value = int(data["value"])
+        except (ValueError, TypeError):
+            return {
+                "success": False,
+                "errors": {"value": ["Rating value must be an integer"]},
+            }, 400
+
+        # Validate rating value (1-5 scale)
+        if abs(rating_value) != 1:
+            return {
+                "success": False,
+                "errors": {"value": ["Rating value must be either 1 or -1"]},
+            }, 400
+
+        # Get review text (optional)
+        review_text = data.get("review", "")
+        if review_text and len(review_text) > 2000:
+            return {
+                "success": False,
+                "errors": {"review": ["Review text cannot exceed 2000 characters"]},
+            }, 400
+
+        # Find existing rating or create new one
+        rating = Ratings.query.filter_by(
+            user_id=user.id, challenge_id=challenge_id
+        ).first()
+
+        if rating:
+            # Update existing rating
+            rating.value = rating_value
+            rating.review = review_text
+            rating.date = datetime.utcnow()
+        else:
+            # Create new rating
+            rating = Ratings(
+                user_id=user.id,
+                challenge_id=challenge_id,
+                value=rating_value,
+                review=review_text,
+            )
+            db.session.add(rating)
+
+        db.session.commit()
+
+        # Clear cached rating data since we just created/updated a rating
+        clear_ratings()
+
+        return {
+            "success": True,
+            "data": {
+                "id": rating.id,
+                "user_id": rating.user_id,
+                "challenge_id": rating.challenge_id,
+                "value": rating.value,
+                "review": rating.review,
+                "date": isoformat(rating.date),
+            },
+        }
