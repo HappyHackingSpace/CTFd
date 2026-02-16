@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% set _is_home = request.path in ["/", "/index"] %}
+
+{% block content %}
+  {% if _is_home %}
+    <section class="osint-hero">
+      <div class="osint-hero__bg" aria-hidden="true"></div>
+      <div class="osint-hero__scan" aria-hidden="true"></div>
+
+      <div class="container osint-hero__container">
+        <div class="osint-hero__grid">
+          <div class="osint-hero__left">
+            <div class="osint-kicker">
+              <span class="osint-kicker__dot" aria-hidden="true"></span>
+              <span class="osint-kicker__text">SYSTEM / SURVEILLANCE / OSINT</span>
+            </div>
+
+            <h1 class="osint-title osint-title--glitch" data-text="{{ Configs.ctf_name }}">{{ Configs.ctf_name }}</h1>
+            <p class="osint-subtitle">
+              Observe. Correlate. Confirm.
+            </p>
+
+            <div class="osint-actions">
+              <a class="btn btn-primary osint-btn" href="{{ url_for('challenges.listing') }}">
+                Start hunting
+              </a>
+              <a class="btn btn-outline-secondary osint-btn osint-btn--ghost" href="{{ url_for('scoreboard.listing') }}">
+                Scoreboard
+              </a>
+              {% if not authed() and registration_visible() %}
+                <a class="btn btn-outline-secondary osint-btn osint-btn--ghost" href="{{ url_for('auth.register') }}">
+                  Register
+                </a>
+              {% endif %}
+            </div>
+
+            <div class="osint-tags" aria-label="Challenge themes">
+              <span class="osint-tag">SOCMINT</span>
+              <span class="osint-tag">GEOINT</span>
+              <span class="osint-tag">IMINT</span>
+              <span class="osint-tag">TRACE</span>
+              <span class="osint-tag">LINK</span>
+            </div>
+          </div>
+
+          <aside class="osint-hero__right">
+            <div class="osint-card osint-card--glass">
+              <div class="osint-card__header">
+                <span class="osint-card__pill">intel feed</span>
+                <span class="osint-card__status">online</span>
+              </div>
+              <div class="osint-terminal" role="region" aria-label="Intel feed">
+                <div class="osint-terminal__line"><span class="osint-terminal__prompt">$</span> whois happyhacking.space</div>
+                <div class="osint-terminal__line osint-terminal__muted">registrant: REDACTED</div>
+                <div class="osint-terminal__line"><span class="osint-terminal__prompt">$</span> exiftool image.jpg | grep -i gps</div>
+                <div class="osint-terminal__line osint-terminal__muted">GPSLatitude: ...</div>
+                <div class="osint-terminal__line"><span class="osint-terminal__prompt">$</span> pivot -&gt; correlate -&gt; verify</div>
+                <div class="osint-terminal__line osint-terminal__muted">rules: don't guess. prove.</div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+  {% else %}
+    <div class="container">
+      {{ content | safe }}
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+  {{ Assets.js("assets/js/page.js") }}
+{% endblock %}

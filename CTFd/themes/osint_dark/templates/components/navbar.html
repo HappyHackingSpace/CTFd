@@ -1,0 +1,156 @@
+{# Cyberpunk navbar override (based on core) #}
+<nav class="navbar navbar-expand-md navbar-dark fixed-top osint-navbar">
+  <div class="container">
+    <a href="{{ url_for('views.static_html', route='/') }}" class="navbar-brand osint-navbar__brand">
+      {% if Configs.ctf_logo %}
+        <img
+            class="img-responsive ctf_logo"
+            src="{{ url_for('views.files', path=Configs.ctf_logo) }}"
+            alt="{{ Configs.ctf_name }}"
+            height="25"
+        >
+      {% else %}
+        {{ Configs.ctf_name }}
+      {% endif %}
+    </a>
+
+    <button
+        class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#base-navbars"
+        aria-controls="base-navbars" aria-expanded="false" aria-label="Toggle navigation"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="base-navbars">
+      <ul class="navbar-nav me-auto osint-navbar__left">
+        {% if Configs.account_visibility != 'admins' %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('users.listing') }}">
+              {% trans %}Users{% endtrans %}
+            </a>
+          </li>
+        {% endif %}
+
+        {% if Configs.account_visibility != 'admins' and Configs.score_visibility != 'admins' %}
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('scoreboard.listing') }}">
+              {% trans %}Scoreboard{% endtrans %}
+            </a>
+          </li>
+        {% endif %}
+
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('challenges.listing') }}">
+            {% trans %}Challenges{% endtrans %}
+          </a>
+        </li>
+      </ul>
+
+      <hr class="d-sm-flex d-md-flex d-lg-none">
+
+      <ul class="navbar-nav ms-md-auto d-block d-sm-flex d-md-flex osint-navbar__right">
+        {% if authed() %}
+          <li class="nav-item dropdown">
+            <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="fas fa-user-circle pe-1"></i>
+              <span class="d-inline">{% trans %}Account{% endtrans %}</span>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li>
+                <a class="dropdown-item d-flex align-items-center justify-content-between gap-3" href="{{ url_for('views.notifications') }}">
+                  <span><i class="fas fa-bell pe-2"></i>{% trans %}Notifications{% endtrans %}</span>
+                  <span x-data x-show="$store.unread_count > 0" x-text="$store.unread_count" class="badge rounded-pill bg-danger badge-notification"></span>
+                </a>
+              </li>
+
+              {% if Configs.user_mode == "teams" %}
+                <li>
+                  <a class="dropdown-item" href="{{ url_for('teams.private') }}">
+                    <i class="fas fa-users pe-2"></i>{% trans %}Team{% endtrans %}
+                  </a>
+                </li>
+              {% endif %}
+
+              <li>
+                <a class="dropdown-item" href="{{ url_for('users.private') }}">
+                  <i class="fas fa-user pe-2"></i>{% trans %}Profile{% endtrans %}
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('views.settings') }}">
+                  <i class="fas fa-cogs pe-2"></i>{% trans %}Settings{% endtrans %}
+                </a>
+              </li>
+
+              {% if is_admin() %}
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                  <a class="dropdown-item" href="{{ url_for('admin.view') }}">
+                    <i class="fas fa-wrench pe-2"></i>{% trans %}Admin Panel{% endtrans %}
+                  </a>
+                </li>
+              {% endif %}
+
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                  <i class="fas fa-sign-out-alt pe-2"></i>{% trans %}Logout{% endtrans %}
+                </a>
+              </li>
+            </ul>
+          </li>
+        {% else %}
+          {% if registration_visible() %}
+            <li class="nav-item">
+              <a class="nav-link" href="{{ url_for('auth.register') }}">
+                <i class="fas fa-user-plus pe-1"></i>
+                <span class="d-inline">{% trans %}Register{% endtrans %}</span>
+              </a>
+            </li>
+          {% endif %}
+
+          <li class="nav-item">
+            <a class="nav-link" href="{{ url_for('auth.login') }}">
+              <i class="fas fa-sign-in-alt pe-1"></i>
+              <span class="d-inline">{% trans %}Login{% endtrans %}</span>
+            </a>
+          </li>
+        {% endif %}
+
+        <li class="nav-item dropdown">
+          <button class="nav-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fas fa-language d-none d-md-inline"></i>
+            <span class="d-sm-inline d-md-none">
+              <i class="fas fa-language pe-1"></i>
+              {% trans %}Change language{% endtrans %}
+            </span>
+          </button>
+          <form x-data="LanguageForm">
+            <ul class="dropdown-menu dropdown-menu-end">
+              {% set curr_lang = get_locale() %}
+              {%- for lang in Languages.names.items() %}
+              <li>
+                  <span class="dropdown-item {{ 'bg-primary text-white' if (curr_lang == lang[0]) }}" @click="set" value="{{ lang[0] }}">
+                    {{ lang[1] }}
+                  </span>
+              </li>
+              {%- endfor %}
+            </ul>
+          </form>
+        </li>
+
+        <li class="nav-item">
+          <button class="nav-link theme-switch" type="button">
+            <span data-bs-toggle="tooltip" data-bs-placement="bottom" title="{% trans %}Toggle theme{% endtrans %}">
+              <i class="fas fa-sun d-none d-md-inline"></i>
+            </span>
+            <span class="d-sm-inline d-md-none">
+              <i class="fas fa-sun pe-1"></i>
+              {% trans %}Toggle theme{% endtrans %}
+            </span>
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
