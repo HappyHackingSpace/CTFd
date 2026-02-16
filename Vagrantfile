@@ -55,7 +55,7 @@ Vagrant.configure("2") do |config|
   # Forward the default port for the development server (4000)
   # and docker or gunicorn (8000) to host machine
   config.vm.network "forwarded_port", guest: 4000, host: 4000
-  config.vm.network "forwarded_port", guest: 8000, host: 8000
+  config.vm.network "forwarded_port", guest: 8000, host: 8080
 
   # Pre-provision
   config.vm.provision "shell", inline: $preProvision
