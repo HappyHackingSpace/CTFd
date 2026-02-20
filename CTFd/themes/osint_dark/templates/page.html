@@ -5,21 +5,68 @@
 {% block content %}
   {% if _is_home %}
     <section class="osint-hero">
-      <div class="osint-hero__bg" aria-hidden="true"></div>
+      {# ── Scan line sweep ── #}
       <div class="osint-hero__scan" aria-hidden="true"></div>
 
+      {# ── Top HUD — surveillance camera overlay ── #}
+      <div class="osint-hud-top" aria-hidden="true">
+        <div class="osint-hud-top__left">
+          <div class="osint-hud-cam">
+            CAM-0021
+            <span class="osint-hud-rec">
+              <span class="osint-hud-rec__dot"></span>
+              <span class="osint-hud-rec__text">REC</span>
+            </span>
+          </div>
+          <div class="osint-hud-ts">2026.02.13&nbsp;&nbsp;14:37:22.048</div>
+          <div class="osint-hud-coords">LAT: 41.0082&nbsp;&nbsp;LON: 28.9784</div>
+        </div>
+        <div class="osint-hud-top__right">
+          <div class="osint-hud-system">ROOT ACCESS</div>
+          <div class="osint-hud-status">SYSTEM STATUS: ACTIVE</div>
+        </div>
+      </div>
+
+      {# ── Side HUD readouts ── #}
+      <div class="osint-hud-side osint-hud-side--left" aria-hidden="true">
+        +0.0/VCM<br>
+        +0.1/VCM<br><br>
+        INPUT_1<br>
+        INPUT_2<br>
+        INPUT_3<br>
+        INPUT_4<br><br>
+        ADMN_CONTROL<br>
+        [LOCKED]
+      </div>
+      <div class="osint-hud-side osint-hud-side--right" aria-hidden="true">
+        INPUT_FEEDS<br>
+        TK_009.557_-1<br>
+        TK_001.193_20<br>
+        CTL_CODE [423]<br>
+        [LINK]<br>
+        SYS.ONLINE +0092
+      </div>
+
+      {# ── Main content ── #}
       <div class="container osint-hero__container">
         <div class="osint-hero__grid">
           <div class="osint-hero__left">
+            {# RELEVANT classification badge #}
             <div class="osint-kicker">
               <span class="osint-kicker__dot" aria-hidden="true"></span>
-              <span class="osint-kicker__text">SYSTEM / SURVEILLANCE / OSINT</span>
+              <span class="osint-kicker__text">RELEVANT</span>
             </div>
 
             <h1 class="osint-title osint-title--glitch" data-text="{{ Configs.ctf_name }}">{{ Configs.ctf_name }}</h1>
+
             <p class="osint-subtitle">
               Observe. Correlate. Confirm.
             </p>
+
+            <div class="osint-ssn" aria-hidden="true">
+              <span class="osint-ssn__number">379-14-4023</span>
+              <span class="osint-ssn__label">SUBJECT OF INTEREST</span>
+            </div>
 
             <div class="osint-actions">
               <a class="btn btn-primary osint-btn" href="{{ url_for('challenges.listing') }}">
@@ -42,6 +89,14 @@
               <span class="osint-tag">TRACE</span>
               <span class="osint-tag">LINK</span>
             </div>
+
+            {# Data acquisition bar #}
+            <div class="osint-data-bar" aria-hidden="true">
+              <div class="osint-data-bar__label">DATA ACQUISITION_</div>
+              <div class="osint-data-bar__track">
+                <div class="osint-data-bar__fill"></div>
+              </div>
+            </div>
           </div>
 
           <aside class="osint-hero__right">
@@ -61,6 +116,26 @@
             </div>
           </aside>
         </div>
+      </div>
+
+      {# ── Bottom HUD data ── #}
+      <div class="osint-hud-bottom" aria-hidden="true">
+        <div class="osint-hud-bottom__left">
+          PROBABILITY: 0.9847<br>
+          CORRELATION: HIGH<br>
+          NODES: 2,847 INDEXED
+        </div>
+        <div class="osint-hud-bottom__right">
+          <span class="hud-masked">IDENTIFIERS: MASKED</span><br>
+          <span class="hud-flag">FLAG{??????}</span><br>
+          <span class="hud-threat">THREAT LEVEL: ELEVATED</span>
+        </div>
+      </div>
+
+      {# ── Bottom bar ── #}
+      <div class="osint-hud-bar" aria-hidden="true">
+        <span class="osint-hud-bar__left">happyhacking.space</span>
+        <span class="osint-hud-bar__right">HHS // 2026</span>
       </div>
     </section>
   {% else %}

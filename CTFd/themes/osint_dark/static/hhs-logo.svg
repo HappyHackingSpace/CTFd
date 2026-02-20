@@ -2,14 +2,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
   <defs>
     <radialGradient id="g1" cx="50%" cy="50%" r="60%">
-      <stop offset="0%" stop-color="#ffdd2d" stop-opacity="0.20"/>
-      <stop offset="55%" stop-color="#ffdd2d" stop-opacity="0.06"/>
-      <stop offset="100%" stop-color="#00f5ff" stop-opacity="0.00"/>
+      <stop offset="0%" stop-color="#d6d9dd" stop-opacity="0.12"/>
+      <stop offset="55%" stop-color="#d6d9dd" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#4a5561" stop-opacity="0.00"/>
     </radialGradient>
     <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ffdd2d" stop-opacity="0.18"/>
-      <stop offset="50%" stop-color="#ff2248" stop-opacity="0.12"/>
-      <stop offset="100%" stop-color="#00f5ff" stop-opacity="0.10"/>
+      <stop offset="0%" stop-color="#d6d9dd" stop-opacity="0.22"/>
+      <stop offset="50%" stop-color="#969a9e" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#5f6268" stop-opacity="0.12"/>
     </linearGradient>
     <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
       <feGaussianBlur stdDeviation="2.2" result="blur"/>
@@ -17,7 +17,7 @@
         values="1 0 0 0 0
                 0 1 0 0 0
                 0 0 1 0 0
-                0 0 0 0.65 0" result="glow"/>
+                0 0 0 0.45 0" result="glow"/>
       <feMerge>
         <feMergeNode in="glow"/>
         <feMergeNode in="SourceGraphic"/>
@@ -28,20 +28,20 @@
   <!-- Soft halo -->
   <circle cx="512" cy="512" r="420" fill="url(#g1)"/>
 
-  <!-- Outer rings -->
-  <circle cx="512" cy="512" r="390" stroke="#ffdd2d" stroke-opacity="0.14" stroke-width="6"/>
-  <circle cx="512" cy="512" r="340" stroke="#00f5ff" stroke-opacity="0.10" stroke-width="4"/>
+  <!-- Outer rings (cold steel) -->
+  <circle cx="512" cy="512" r="390" stroke="#d6d9dd" stroke-opacity="0.10" stroke-width="6"/>
+  <circle cx="512" cy="512" r="340" stroke="#4a5561" stroke-opacity="0.08" stroke-width="4"/>
 
-  <!-- HUD ticks -->
-  <g stroke="#ffdd2d" stroke-opacity="0.12" stroke-width="6" stroke-linecap="round">
+  <!-- HUD ticks (cold white) -->
+  <g stroke="#d6d9dd" stroke-opacity="0.10" stroke-width="6" stroke-linecap="round">
     <line x1="512" y1="118" x2="512" y2="156"/>
     <line x1="512" y1="868" x2="512" y2="906"/>
     <line x1="118" y1="512" x2="156" y2="512"/>
     <line x1="868" y1="512" x2="906" y2="512"/>
   </g>
 
-  <!-- Subtle angled chevrons -->
-  <g stroke="#00f5ff" stroke-opacity="0.10" stroke-width="5" stroke-linecap="round">
+  <!-- Subtle angled chevrons (steel) -->
+  <g stroke="#4a5561" stroke-opacity="0.08" stroke-width="5" stroke-linecap="round">
     <path d="M212 330 L250 292" />
     <path d="M812 330 L774 292" />
     <path d="M212 694 L250 732" />
@@ -65,8 +65,8 @@
       font-size="34"
       font-weight="700"
       letter-spacing="8"
-      fill="#ffffff"
-      fill-opacity="0.14">
+      fill="#969a9e"
+      fill-opacity="0.12">
       OSINT / CTF
     </text>
   </g>
