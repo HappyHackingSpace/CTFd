@@ -673,7 +673,7 @@ body.osint-home .osint-hero__grid {
 
 .osint-hud-bottom {
   position: absolute;
-  bottom: clamp(2.5rem, 5vh, 3.5rem);
+  bottom: clamp(3rem, 6vh, 4.5rem);
   left: 0;
   right: 0;
   padding: 0 1.2rem;
@@ -1019,7 +1019,7 @@ body.osint-home .osint-btn--ghost:hover {
   font-size: 0.88rem;
   line-height: 1.55;
   background: rgba(8, 8, 10, 0.50);
-  border-left: 2px solid var(--poi-steel);
+  border-left: none;
 }
 
 .osint-terminal__line {
@@ -1036,6 +1036,20 @@ body.osint-home .osint-btn--ghost:hover {
 .osint-terminal__prompt {
   color: var(--poi-yellow);
   margin-right: 0.4rem;
+}
+
+/* ── Terminal cursor ────────────────────────────────────────────────── */
+
+.poi-term-cursor {
+  color: var(--poi-yellow);
+  animation: poi-cursor-blink 0.7s step-end infinite;
+  font-weight: 400;
+  margin-left: 1px;
+}
+
+@keyframes poi-term-cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 /* ── Data acquisition bar ───────────────────────────────────────────── */
@@ -1071,13 +1085,12 @@ body.osint-home .osint-btn--ghost:hover {
   height: 100%;
   width: 28%;
   background: var(--poi-red);
-  animation: osint-data-fill 8s ease-in-out infinite;
+  animation: osint-data-fill 12s linear forwards;
 }
 
 @keyframes osint-data-fill {
-  0% { width: 10%; }
-  50% { width: 45%; }
-  100% { width: 10%; }
+  0% { width: 0%; }
+  100% { width: 100%; }
 }
 
 /* ── Card body / brief ──────────────────────────────────────────────── */
@@ -1107,10 +1120,291 @@ body.osint-home .osint-btn--ghost:hover {
   text-decoration: underline;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   ENTRANCE ANIMATIONS — POI Machine boot-up sequence
+   Timeline: elements appear sequentially like the video
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Base: everything starts hidden on homepage */
+body.osint-home .osint-hud-top,
+body.osint-home .osint-hud-side,
+body.osint-home .osint-hud-bottom,
+body.osint-home .osint-hud-bar,
+body.osint-home .osint-kicker,
+body.osint-home .osint-title,
+body.osint-home .osint-subtitle,
+body.osint-home .osint-ssn,
+body.osint-home .osint-actions,
+body.osint-home .osint-tags,
+body.osint-home .osint-data-bar,
+body.osint-home .osint-card {
+  opacity: 0;
+  animation-fill-mode: both;
+}
+
+/* Generic fade-in */
+@keyframes poi-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Fade in + slide from left */
+@keyframes poi-slide-left {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Fade in + slide from right */
+@keyframes poi-slide-right {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Fade in + slide up */
+@keyframes poi-slide-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Snap in (for RELEVANT badge) — fast scale from left */
+@keyframes poi-snap-in {
+  0% { opacity: 0; transform: translateX(-40px) scaleX(0.6); }
+  70% { opacity: 1; transform: translateX(4px) scaleX(1.02); }
+  100% { opacity: 1; transform: translateX(0) scaleX(1); }
+}
+
+/* POI targeting box corner draw-in */
+@keyframes poi-corners-draw {
+  0% { opacity: 0; clip-path: polygon(0 0, 0 0, 0 0, 0 0, 100% 0, 100% 0, 100% 0, 100% 100%, 100% 100%, 100% 100%, 0 100%, 0 100%); }
+  30% { opacity: 0.55; }
+  100% { opacity: 0.55; clip-path: polygon(0 0, 100% 0, 100% 0, 100% 0, 100% 0, 100% 100%, 100% 100%, 100% 100%, 0 100%, 0 100%, 0 100%, 0 0); }
+}
+
+/* Title panel expand from center */
+@keyframes poi-panel-expand {
+  0% { opacity: 0; transform: scaleX(0); }
+  60% { opacity: 1; transform: scaleX(1.02); }
+  100% { opacity: 1; transform: scaleX(1); }
+}
+
+/* Bottom bar slide up */
+@keyframes poi-bar-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Sequence timing ── */
+
+/* 0.3s — Top HUD left (CAM, REC, timestamp) */
+body.osint-home .osint-hud-top {
+  animation: poi-fade-in 0.6s ease-out 0.3s both;
+}
+
+/* 0.6s — Side HUD readouts */
+body.osint-home .osint-hud-side--left {
+  animation: poi-slide-left 0.8s ease-out 0.6s both;
+}
+
+body.osint-home .osint-hud-side--right {
+  animation: poi-slide-right 0.8s ease-out 0.7s both;
+}
+
+/* 1.4s — Card (targeting box) */
+body.osint-home .osint-card {
+  animation: poi-fade-in 0.8s ease-out 1.4s both;
+}
+
+/* Card corner brackets draw animation */
+body.osint-home .osint-card::before {
+  opacity: 0;
+  animation: poi-fade-in 0.6s ease-out 1.6s both;
+}
+
+body.osint-home .osint-card::after {
+  opacity: 0;
+  animation: poi-fade-in 0.8s ease-out 2.0s both;
+}
+
+/* 2.2s — RELEVANT badge snap-in */
+body.osint-home .osint-kicker {
+  animation: poi-snap-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) 2.2s both;
+}
+
+/* 2.6s — Title */
+body.osint-home .osint-title {
+  animation: poi-fade-in 0.7s ease-out 2.6s both;
+}
+
+/* 3.0s — Subtitle */
+body.osint-home .osint-subtitle {
+  animation: poi-fade-in 0.5s ease-out 3.0s both;
+}
+
+/* 3.3s — SSN identifier */
+body.osint-home .osint-ssn {
+  animation: poi-fade-in 0.5s ease-out 3.3s both;
+}
+
+/* 3.6s — Action buttons (staggered) */
+body.osint-home .osint-actions {
+  animation: poi-slide-up 0.5s ease-out 3.6s both;
+}
+
+/* 4.0s — Tags */
+body.osint-home .osint-tags {
+  animation: poi-slide-up 0.5s ease-out 4.0s both;
+}
+
+/* 4.3s — Data acquisition bar */
+body.osint-home .osint-data-bar {
+  animation: poi-slide-up 0.5s ease-out 4.3s both;
+}
+
+/* 4.6s — Bottom HUD data */
+body.osint-home .osint-hud-bottom {
+  animation: poi-fade-in 0.8s ease-out 4.6s both;
+}
+
+/* 5.0s — Bottom bar */
+body.osint-home .osint-hud-bar {
+  animation: poi-bar-up 0.4s ease-out 5.0s both;
+}
+
+/* Terminal lines are now JS-driven (poi-terminal cycling) */
+
+/* ── Typewriter cursor blink for elements with .typewriter ── */
+
+.typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  border-right: 2px solid var(--poi-fg-dim);
+  animation: poi-cursor-blink 0.7s step-end infinite;
+}
+
+.typewriter--done {
+  border-right-color: transparent;
+}
+
+@keyframes poi-cursor-blink {
+  0%, 100% { border-right-color: var(--poi-fg-dim); }
+  50% { border-right-color: transparent; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   POI GLITCH BURST — random horizontal displacement
+   Applied via JS as a transient class
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes poi-glitch-burst {
+  0% { transform: translate(0, 0); filter: none; }
+  10% { transform: translate(-3px, 1px); filter: hue-rotate(10deg); }
+  20% { transform: translate(5px, -2px); }
+  30% { transform: translate(-2px, 0); filter: hue-rotate(-8deg); }
+  40% { transform: translate(4px, 1px); }
+  50% { transform: translate(-1px, -1px); filter: none; }
+  60% { transform: translate(3px, 0); }
+  70% { transform: translate(-4px, 1px); filter: hue-rotate(5deg); }
+  80% { transform: translate(2px, -1px); }
+  90% { transform: translate(-1px, 0); filter: none; }
+  100% { transform: translate(0, 0); filter: none; }
+}
+
+.poi-glitch-active {
+  animation: poi-glitch-burst 0.15s linear !important;
+}
+
+/* Chromatic aberration overlay during glitch */
+.poi-glitch-active::before {
+  mix-blend-mode: screen;
+  opacity: 0.3 !important;
+  filter: drop-shadow(-3px 0 0 rgba(0, 180, 140, 0.4)) drop-shadow(3px 0 0 rgba(180, 50, 50, 0.4)) !important;
+}
+
+/* Glitch displacement bands — injected via JS */
+.poi-glitch-band {
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 9999;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  animation: poi-band-flash 0.12s linear forwards;
+}
+
+@keyframes poi-band-flash {
+  0% { opacity: 0.8; transform: translateX(0); }
+  30% { opacity: 0.6; transform: translateX(-20px); }
+  60% { opacity: 0.4; transform: translateX(15px); }
+  100% { opacity: 0; transform: translateX(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   PERSISTENT AMBIENT ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Subtle POI flicker on the whole hero (emulates camera sensor noise) */
+body.osint-home .osint-hero {
+  animation: poi-flicker 6s ease-in-out infinite;
+}
+
+@keyframes poi-flicker {
+  0%, 100% { filter: brightness(1); }
+  15% { filter: brightness(1.01); }
+  30% { filter: brightness(0.99); }
+  45% { filter: brightness(1.015); }
+  60% { filter: brightness(0.985); }
+  75% { filter: brightness(1.008); }
+  90% { filter: brightness(0.995); }
+}
+
+/* Card status blink (like the video's "online" indicator) */
+.osint-card__status {
+  animation: poi-status-pulse 3s ease-in-out infinite;
+}
+
+@keyframes poi-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* ── Layout ─────────────────────────────────────────────────────────── */
 
 @media (min-width: 1200px) {
   body.osint-home .container {
     max-width: 1180px;
+  }
+}
+
+/* ── Reduce motion for accessibility ────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  body.osint-home .osint-hud-top,
+  body.osint-home .osint-hud-side,
+  body.osint-home .osint-hud-bottom,
+  body.osint-home .osint-hud-bar,
+  body.osint-home .osint-kicker,
+  body.osint-home .osint-title,
+  body.osint-home .osint-subtitle,
+  body.osint-home .osint-ssn,
+  body.osint-home .osint-actions,
+  body.osint-home .osint-tags,
+  body.osint-home .osint-data-bar,
+  body.osint-home .osint-card,
+  body.osint-home .osint-terminal__line,
+  body.osint-home .osint-card::before,
+  body.osint-home .osint-card::after {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  .osint-hero__scan,
+  .osint-glitchbars,
+  .osint-bgmark {
+    animation: none !important;
+  }
+
+  .poi-glitch-band {
+    display: none !important;
   }
 }

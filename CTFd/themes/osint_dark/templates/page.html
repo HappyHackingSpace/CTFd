@@ -12,18 +12,18 @@
       <div class="osint-hud-top" aria-hidden="true">
         <div class="osint-hud-top__left">
           <div class="osint-hud-cam">
-            CAM-0021
+            <span data-typewriter data-tw-delay="400" data-tw-speed="60">CAM-0021</span>
             <span class="osint-hud-rec">
               <span class="osint-hud-rec__dot"></span>
               <span class="osint-hud-rec__text">REC</span>
             </span>
           </div>
-          <div class="osint-hud-ts">2026.02.13&nbsp;&nbsp;14:37:22.048</div>
-          <div class="osint-hud-coords">LAT: 41.0082&nbsp;&nbsp;LON: 28.9784</div>
+          <div class="osint-hud-ts" data-live-timestamp>2026.02.13&nbsp;&nbsp;14:37:22.048</div>
+          <div class="osint-hud-coords" data-typewriter data-tw-delay="800" data-tw-speed="40">LAT: 37.9835&nbsp;&nbsp;LON: 40.1389</div>
         </div>
         <div class="osint-hud-top__right">
-          <div class="osint-hud-system">ROOT ACCESS</div>
-          <div class="osint-hud-status">SYSTEM STATUS: ACTIVE</div>
+          <div class="osint-hud-system" data-typewriter data-tw-delay="600" data-tw-speed="50">ROOT ACCESS</div>
+          <div class="osint-hud-status" data-typewriter data-tw-delay="900" data-tw-speed="35">SYSTEM STATUS: ACTIVE</div>
         </div>
       </div>
 
@@ -64,7 +64,7 @@
             </p>
 
             <div class="osint-ssn" aria-hidden="true">
-              <span class="osint-ssn__number">379-14-4023</span>
+              <span class="osint-ssn__number" data-typewriter data-tw-delay="3400" data-tw-speed="80">379-14-4023</span>
               <span class="osint-ssn__label">SUBJECT OF INTEREST</span>
             </div>
 
@@ -105,14 +105,7 @@
                 <span class="osint-card__pill">intel feed</span>
                 <span class="osint-card__status">online</span>
               </div>
-              <div class="osint-terminal" role="region" aria-label="Intel feed">
-                <div class="osint-terminal__line"><span class="osint-terminal__prompt">$</span> whois happyhacking.space</div>
-                <div class="osint-terminal__line osint-terminal__muted">registrant: REDACTED</div>
-                <div class="osint-terminal__line"><span class="osint-terminal__prompt">$</span> exiftool image.jpg | grep -i gps</div>
-                <div class="osint-terminal__line osint-terminal__muted">GPSLatitude: ...</div>
-                <div class="osint-terminal__line"><span class="osint-terminal__prompt">$</span> pivot -&gt; correlate -&gt; verify</div>
-                <div class="osint-terminal__line osint-terminal__muted">rules: don't guess. prove.</div>
-              </div>
+              <div class="osint-terminal" id="poi-terminal" role="region" aria-label="Intel feed"></div>
             </div>
           </aside>
         </div>
@@ -138,6 +131,242 @@
         <span class="osint-hud-bar__right">HHS // 2026</span>
       </div>
     </section>
+
+    <script>
+    (function() {
+      'use strict';
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      /* ── Typewriter effect ── */
+      document.querySelectorAll('[data-typewriter]').forEach(function(el) {
+        var full = el.textContent;
+        var delay = parseInt(el.dataset.twDelay || '0', 10);
+        var speed = parseInt(el.dataset.twSpeed || '50', 10);
+        el.textContent = '';
+        el.classList.add('typewriter');
+
+        setTimeout(function() {
+          var i = 0;
+          var iv = setInterval(function() {
+            i++;
+            el.textContent = full.slice(0, i);
+            if (i >= full.length) {
+              clearInterval(iv);
+              el.classList.add('typewriter--done');
+            }
+          }, speed);
+        }, delay);
+      });
+
+      /* ── Live ticking timestamp ── */
+      var tsEl = document.querySelector('[data-live-timestamp]');
+      if (tsEl) {
+        setInterval(function() {
+          var now = new Date();
+          var y = now.getFullYear();
+          var mo = String(now.getMonth() + 1).padStart(2, '0');
+          var d = String(now.getDate()).padStart(2, '0');
+          var h = String(now.getHours()).padStart(2, '0');
+          var m = String(now.getMinutes()).padStart(2, '0');
+          var s = String(now.getSeconds()).padStart(2, '0');
+          var ms = String(now.getMilliseconds()).padStart(3, '0');
+          tsEl.textContent = y + '.' + mo + '.' + d + '  ' + h + ':' + m + ':' + s + '.' + ms;
+        }, 33);
+      }
+
+      /* ── POI Intel Feed — cycling terminal ── */
+      var term = document.getElementById('poi-terminal');
+      if (term) {
+        var feeds = [
+          [
+            { cmd: 'whois happyhacking.space', out: ['registrant: REDACTED', 'nameserver: CLASSIFIED'] },
+            { cmd: 'exiftool image.jpg | grep -i gps', out: ['GPSLatitude: 37.9835 N', 'GPSLongitude: 40.1389 E'] },
+            { cmd: 'pivot -> correlate -> verify', out: ["rules: don't guess. prove."] },
+          ],
+          [
+            { cmd: 'nslookup target.onion', out: ['server: 127.0.0.1', 'NXDOMAIN — rerouting...'] },
+            { cmd: 'sherlock --timeout 5 user_4023', out: ['[+] Twitter: FOUND', '[+] GitHub: FOUND', '[-] Reddit: NOT FOUND'] },
+            { cmd: 'traceroute -m 12 node.suspect', out: ['hop 4: 10.0.0.1 [REDACTED]', 'hop 7: * * * REQUEST TIMED OUT', 'hop 12: DESTINATION UNREACHABLE'] },
+          ],
+          [
+            { cmd: 'curl -sI https://intel.hhs.local', out: ['HTTP/2 403 FORBIDDEN', 'x-auth: TOKEN_REQUIRED'] },
+            { cmd: 'grep -r "flag{" /var/logs/', out: ['ACCESS DENIED — CLEARANCE: INSUFFICIENT'] },
+            { cmd: 'shodan search hostname:target', out: ['port 22: OPEN (SSH)', 'port 443: OPEN (HTTPS)', 'port 8080: FILTERED'] },
+          ],
+          [
+            { cmd: 'hash -md5 evidence_037.bin', out: ['d41d8cd98f00b204e9800998ecf8427e', 'match: 0 / 2,847 indexed'] },
+            { cmd: 'geolocate --satellite img_0421.tif', out: ['confidence: 0.9847', 'region: DIYARBAKIR', 'cross-ref: PENDING'] },
+            { cmd: 'status --all-nodes', out: ['ACTIVE: 12 / 16', 'OFFLINE: 3', 'COMPROMISED: 1 [ALERT]'] },
+          ],
+        ];
+
+        var feedIdx = 0;
+        var MAX_LINES = 12;
+        var cursor = null;
+
+        function makeLine(cls) {
+          var div = document.createElement('div');
+          div.className = 'osint-terminal__line' + (cls ? ' ' + cls : '');
+          return div;
+        }
+
+        function addCursor() {
+          if (cursor) cursor.remove();
+          cursor = document.createElement('span');
+          cursor.className = 'poi-term-cursor';
+          cursor.textContent = '\u2588';
+          return cursor;
+        }
+
+        function trimLines() {
+          while (term.children.length > MAX_LINES) {
+            term.firstChild.style.opacity = '0';
+            term.firstChild.style.transition = 'opacity 0.15s';
+            var old = term.firstChild;
+            setTimeout(function(el) { el.remove(); }, 150, old);
+            /* remove immediately from flow to prevent buildup */
+            term.removeChild(old);
+          }
+        }
+
+        function typeCmd(text, cb) {
+          var line = makeLine();
+          var prompt = document.createElement('span');
+          prompt.className = 'osint-terminal__prompt';
+          prompt.textContent = '$ ';
+          line.appendChild(prompt);
+          var span = document.createElement('span');
+          line.appendChild(span);
+          line.appendChild(addCursor());
+          term.appendChild(line);
+          trimLines();
+
+          var i = 0;
+          var iv = setInterval(function() {
+            i++;
+            span.textContent = text.slice(0, i);
+            if (i >= text.length) {
+              clearInterval(iv);
+              if (cursor) cursor.remove();
+              cb();
+            }
+          }, 28 + Math.random() * 22);
+        }
+
+        function showOutput(lines, cb) {
+          var idx = 0;
+          function nextLine() {
+            if (idx >= lines.length) { cb(); return; }
+            var line = makeLine('osint-terminal__muted');
+            line.style.opacity = '0';
+            line.textContent = lines[idx];
+            term.appendChild(line);
+            trimLines();
+            /* flash-in like machine processing */
+            requestAnimationFrame(function() {
+              line.style.transition = 'opacity 0.12s';
+              line.style.opacity = '1';
+            });
+            idx++;
+            setTimeout(nextLine, 120 + Math.random() * 180);
+          }
+          nextLine();
+        }
+
+        function runFeed(feed, cmdIdx, cb) {
+          if (cmdIdx >= feed.length) { cb(); return; }
+          var entry = feed[cmdIdx];
+          typeCmd(entry.cmd, function() {
+            setTimeout(function() {
+              showOutput(entry.out, function() {
+                setTimeout(function() {
+                  runFeed(feed, cmdIdx + 1, cb);
+                }, 400 + Math.random() * 600);
+              });
+            }, 200 + Math.random() * 300);
+          });
+        }
+
+        function cycleFeeds() {
+          var feed = feeds[feedIdx % feeds.length];
+          feedIdx++;
+          runFeed(feed, 0, function() {
+            setTimeout(function() {
+              /* Brief pause then clear with a flicker */
+              term.style.opacity = '0.3';
+              setTimeout(function() {
+                term.innerHTML = '';
+                term.style.opacity = '1';
+                cycleFeeds();
+              }, 150);
+            }, 2000 + Math.random() * 1500);
+          });
+        }
+
+        /* Start after card entrance animation */
+        setTimeout(cycleFeeds, 2000);
+      }
+
+      /* ── Random POI glitch bursts ── */
+      var glitchTargets = [
+        '.osint-hero',
+        '.osint-card',
+        '.osint-hud-top',
+        '.osint-title'
+      ];
+
+      var sepColors = [
+        'rgba(0, 255, 120, 0.6)',
+        'rgba(0, 220, 200, 0.5)',
+        'rgba(200, 30, 60, 0.5)',
+        'rgba(255, 255, 255, 0.4)',
+        'rgba(0, 180, 140, 0.5)',
+        'rgba(180, 0, 50, 0.4)'
+      ];
+
+      function spawnGlitchBands() {
+        var count = 2 + Math.floor(Math.random() * 4);
+        for (var i = 0; i < count; i++) {
+          var band = document.createElement('div');
+          band.className = 'poi-glitch-band';
+          band.style.top = (5 + Math.random() * 90) + 'vh';
+          band.style.height = (1 + Math.random() * 4) + 'px';
+          band.style.background = sepColors[Math.floor(Math.random() * sepColors.length)];
+          band.style.transform = 'translateX(' + (Math.random() > 0.5 ? '' : '-') + Math.floor(10 + Math.random() * 50) + 'px)';
+          document.body.appendChild(band);
+          setTimeout(function(b) { b.remove(); }, 150, band);
+        }
+      }
+
+      function triggerGlitch() {
+        var selector = glitchTargets[Math.floor(Math.random() * glitchTargets.length)];
+        var el = document.querySelector(selector);
+        if (el) {
+          el.classList.add('poi-glitch-active');
+          setTimeout(function() { el.classList.remove('poi-glitch-active'); }, 150);
+        }
+        spawnGlitchBands();
+      }
+
+      /* First glitch after entrance sequence finishes */
+      setTimeout(triggerGlitch, 5500);
+
+      /* Random glitches every 6–14 seconds */
+      function scheduleGlitch() {
+        var next = 6000 + Math.random() * 8000;
+        setTimeout(function() {
+          triggerGlitch();
+          /* Occasional double-burst (like the video) */
+          if (Math.random() < 0.3) {
+            setTimeout(triggerGlitch, 80 + Math.random() * 120);
+          }
+          scheduleGlitch();
+        }, next);
+      }
+      scheduleGlitch();
+
+    })();
+    </script>
   {% else %}
     <div class="container">
       {{ content | safe }}
